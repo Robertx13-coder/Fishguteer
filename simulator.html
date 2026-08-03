@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcade Battle Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+    </style>
+    <!-- Include the Phaser Game Engine Framework -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+</head>
+<body>
+
+<div id="game-container"></div>
+
+<script>
+    const config = {
+        type: Phaser.AUTO,
+        width: 800,
+        height: 600,
+        parent: 'game-container',
+        physics: {
+            default: 'arcade',
+            arcade: { debug: false }
+        },
+        scene: { preload: preload, create: create, update: update }
+    };
+
+    const game = new Phaser.Game(config);
+    let hero;
+    let shields;
+    let projectiles;
+    let spawnTimer;
+
+    function preload() {
+        // Creates procedural colored shapes so no external image downloads are required
+        let canvas = this.textures.createCanvas('heroTexture', 40, 40);
+        canvas.context.fillStyle = '#3498db'; // Blue hero
+        canvas.context.fillRect(0, 0, 40, 40);
+        canvas.refresh();
+
+        let cloneCanvas = this.textures.createCanvas('cloneTexture', 30, 30);
+        cloneCanvas.context.fillStyle = '#2980b9'; // Darker blue clones
+        cloneCanvas.context.fillRect(0, 0, 30, 30);
+        cloneCanvas.refresh();
+
+        let projCanvas = this.textures.createCanvas('projectileTexture', 12, 12);
+        projCanvas.context.fillStyle = '#e67e22'; // Glowing orange bullets
+        projCanvas.context.beginPath();
+        projCanvas.context.arc(6, 6, 6, 0, Math.PI * 2);
+        projCanvas.context.fill();
+        projCanvas.refresh();
+    }
+
+    function create() {
+        // Build the game scene background
+        this.add.grid(400, 300, 800, 600, 40, 40, 0x1a1a1a).setOutlineLocally = true;
+
+        // Spawn Main Hero and Clones
+        hero = this.physics.add.sprite(200, 300, 'heroTexture');
+        hero.setCollideWorldBounds(true);
+
+        this.add.text(200, 240, "HERO", { font: "14px Arial", fill: "#3498db" }).setOrigin(0.5);
+        let clone1 = this.add.sprite(120, 230, 'cloneTexture');
+        let clone2 = this.add.sprite(120, 370, 'cloneTexture');
+
+        // Setup Projectile Pool
+        projectiles = this.physics.add.group();
+
+        // Automatic projectile spawning system
+        spawnTimer = this.time.addEvent({
+            delay: 800,
+            callback: () => {
+                let p = projectiles.create(820, Phaser.Math.Between(150, 450), 'projectileTexture');
+                p.body.setVelocityX(-350);
+            },
+            callbackScope: this,
+            loop: true
+        });
+
+        // Add defensive physics collision collision rules
+        this.physics.add.overlap(hero, projectiles, (h, proj) => {
+            proj.destroy();
+            this.cameras.main.shake(150, 0.01); // Camera Shake Effect
+
+            // Pop combat text overlay
+            let txt = this.add.text(hero.x, hero.y - 30, "BLOCK", { font: "bold 16px Arial", fill: "#2ecc71" });
+            this.tweens.add({
+                targets: txt,
+                y: txt.y - 40,
+                alpha: 0,
+                duration: 600,
+                onComplete: () => txt.destroy()
+            });
+        }, null, this);
+    }
+
+    function update() {
+        // Auto-pilot logic moving up and down to block target zones
+        let targetY = 300 + Math.sin(this.time.now * 0.004) * 120;
+        hero.y = Phaser.Math.Linear(hero.y, targetY, 0.1);
+    }
+</script>
+
+</body>
+</html>
